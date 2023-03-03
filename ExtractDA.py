@@ -6,7 +6,7 @@ import requests
 api_url = "https://api.apps1.nsw.gov.au/eplanning/data/v0/OnlineDA"
 DeterminationDateFrom = '2022-01-01'
 DeterminationDateTo = '2022-12-31'
-ResultsToReturn = '10'
+ResultsToReturn = '100'
 
 #Set the API headers
 headers = {
@@ -57,7 +57,7 @@ final = flat.join(mask.replace(0,np.nan))
 flat = final
 
 #Export results to CSV
-flat.to_csv('da-2021-22-v.csv')
+flat.to_csv('da.csv')
 
 #Done!
 print('Script complete')
