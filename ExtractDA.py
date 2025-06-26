@@ -35,7 +35,7 @@ except requests.exceptions.RequestException as error:
 flat=pd.json_normalize(data, record_path=['Application'])
 
 #Drop a bunch of columns
-flat = flat.drop(['LodgementDate','AccompaniedByVPAFlag', 'DevelopmentSubjectToSICFlag', 'EPIVariationProposedFlag', 'SubdivisionProposedFlag', 'AssessmentExhibitionEndDate', 'AssessmentExhibitionStartDate','VariationToDevelopmentStandardsApprovedFlag'], axis=1)
+# flat = flat.drop(['LodgementDate','AccompaniedByVPAFlag', 'DevelopmentSubjectToSICFlag', 'EPIVariationProposedFlag', 'SubdivisionProposedFlag', 'AssessmentExhibitionEndDate', 'AssessmentExhibitionStartDate','VariationToDevelopmentStandardsApprovedFlag'], axis=1)
 
 #Function that unpacks a dictionary that's within a field
 def unpackDict (y):
