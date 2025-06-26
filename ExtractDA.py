@@ -37,24 +37,9 @@ flat=pd.json_normalize(data, record_path=['Application'])
 #Drop a bunch of columns
 flat = flat.drop(['LodgementDate','AccompaniedByVPAFlag', 'DevelopmentSubjectToSICFlag', 'EPIVariationProposedFlag', 'SubdivisionProposedFlag', 'AssessmentExhibitionEndDate', 'AssessmentExhibitionStartDate','VariationToDevelopmentStandardsApprovedFlag'], axis=1)
 
-#Function that unpacks a dictionary that's within a field
-def unpackDict (y):
-    out = ''
-    for x in y:
-        for w in x.values():
-            w = w.strip()
-            out = out + w + ";"
-    return out
 
 #Unpack dictionary of Development Types
-flat['DevelopmentType'] = flat['DevelopmentType'].apply(unpackDict)
 
-#Create columns for each Development Type
-mask=flat['DevelopmentType'].str.get_dummies(sep=';').replace('?',np.nan)
-for col in mask.columns:
-    mask[col].fillna(col, inplace=True)
-final = flat.join(mask.replace(0,np.nan))
-flat = final
 
 #Export results to CSV
 flat.to_csv('da.csv')
