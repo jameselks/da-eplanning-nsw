@@ -37,10 +37,6 @@ flat=pd.json_normalize(data, record_path=['Application'])
 #Drop a bunch of columns
 flat = flat.drop(['LodgementDate','AccompaniedByVPAFlag', 'DevelopmentSubjectToSICFlag', 'EPIVariationProposedFlag', 'SubdivisionProposedFlag', 'AssessmentExhibitionEndDate', 'AssessmentExhibitionStartDate','VariationToDevelopmentStandardsApprovedFlag'], axis=1)
 
-
-#Unpack dictionary of Development Types
-
-
 #Export results to CSV
 flat.to_csv('da.csv')
 
