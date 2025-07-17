@@ -38,7 +38,12 @@ flat=pd.json_normalize(data, record_path=['Application'])
 # flat = flat.drop(['LodgementDate','AccompaniedByVPAFlag', 'DevelopmentSubjectToSICFlag', 'EPIVariationProposedFlag', 'SubdivisionProposedFlag', 'AssessmentExhibitionEndDate', 'AssessmentExhibitionStartDate','VariationToDevelopmentStandardsApprovedFlag'], axis=1)
 
 #Export results to CSV
-flat.to_csv('da.csv')
+try:
+    flat.to_csv('da.csv')
+except IOError as e:
+    print(f"Error writing to CSV file: {e}")
+except Exception as e:
+    print(f"An unexpected error occurred: {e}")
 
 #Done!
 print('Script complete')
