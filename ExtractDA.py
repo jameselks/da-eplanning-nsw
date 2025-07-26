@@ -9,88 +9,96 @@ from tqdm import tqdm  # For a user-friendly progress bar
 CONFIG = {
     "api_url": "https://api.apps1.nsw.gov.au/eplanning/data/v0/OnlineDA",
     "determination_date_from": '2022-01-01',
-    "determination_date_to": '2022-12-31',
-    "results_per_page": 100,  # The API is capped at 100 per page
+    "determination_date_to": '2022-06-30',
+    "results_per_page": 1000,
     "output_filename": 'development-applications.csv',
-    "filters": {
+    "development_categories": ["Industrial", "Commercial", "Recreational", "Residential", "Other"],
+    "base_filters": {
         "ApplicationType": "Development Application",
-        "DevelopmentCategory": ["Commercial"],
         "ApplicationStatus": ["Determined"]
     }
 }
 
 def main():
     """
-    Main function to fetch data from the NSW ePlanning portal and save it to a CSV.
+    Main function to fetch data for multiple categories from the NSW ePlanning portal 
+    and save it to a single CSV.
     """
     print("Starting data fetch from NSW ePlanning Portal...")
     all_applications = []
 
-    # Combine the base filters with the date range for the request
-    filter_payload = CONFIG['filters'].copy()
-    filter_payload['DeterminationDateFrom'] = CONFIG['determination_date_from']
-    filter_payload['DeterminationDateTo'] = CONFIG['determination_date_to']
-    
-    # Define the headers for the API request
-    headers = {
-        'pageSize': str(CONFIG['results_per_page']),
-        'pageNumber': '1',
-        'filters': json.dumps({"filters": filter_payload})
-    }
-
-    # Using a requests.Session is more efficient as it reuses the same connection for all requests to the same server.
+    # Using a requests.Session is more efficient as it reuses the same connection 
+    # for all requests to the same server.
     with requests.Session() as session:
-        try:
-            # --- Step 1: Make the first request to get total pages ---
-            print("Fetching page 1 to determine total pages...")
-            response = session.get(CONFIG['api_url'], headers=headers)
-            response.raise_for_status()  # Check for HTTP errors (like 404 or 500)
-            data = response.json()
-
-            total_pages = data.get('TotalPages', 0)
-            total_records = data.get('TotalCount', 0)
-
-            if total_records == 0:
-                print("No records found for the specified criteria. Exiting.")
-                return
-
-            print(f"Found {total_records} total records across {total_pages} pages.")
+        # --- Step 1: Loop through each specified development category ---
+        for category in CONFIG["development_categories"]:
+            print(f"\n{'='*20}\nFetching category: {category}\n{'='*20}")
             
-            # Add applications from the first page to our list
-            all_applications.extend(data.get('Application', []))
-
-            # --- Step 2: Loop through the remaining pages ---
-            if total_pages > 1:
-                # The tqdm wrapper creates a nice progress bar for the loop
-                for page_num in tqdm(range(2, total_pages + 1), desc="Fetching Pages"):
-                    headers['pageNumber'] = str(page_num)
-                    
-                    # Fetch the next page of data
-                    response = session.get(CONFIG['api_url'], headers=headers)
-                    response.raise_for_status()
-                    page_data = response.json()
-                    
-                    # Add the new applications to our master list
-                    all_applications.extend(page_data.get('Application', []))
-
-                    # A small delay to be polite to the API server
-                    time.sleep(0.2)
+            # Combine the base filters with the current category and date range
+            filter_payload = CONFIG['base_filters'].copy()
+            filter_payload['DevelopmentCategory'] = [category] # Set the current category
+            filter_payload['DeterminationDateFrom'] = CONFIG['determination_date_from']
+            filter_payload['DeterminationDateTo'] = CONFIG['determination_date_to']
             
-            print(f"\nAll pages fetched. Total applications collected: {len(all_applications)}")
+            headers = {
+                'pageSize': str(CONFIG['results_per_page']),
+                'pageNumber': '1',
+                'filters': json.dumps({"filters": filter_payload})
+            }
 
-        except requests.exceptions.RequestException as e:
-            print(f"\nAn error occurred during the request: {e}")
-            print("Aborting script.")
-            return
+            try:
+                # --- Step 2: Make the first request for the category to get total pages ---
+                print("Fetching page 1 to determine total pages for this category...")
+                response = session.get(CONFIG['api_url'], headers=headers)
+                response.raise_for_status()
+                data = response.json()
 
-    # --- Step 3: Save the collected data to a CSV file ---
+                total_pages = data.get('TotalPages', 0)
+                total_records = data.get('TotalCount', 0)
+
+                if total_records == 0:
+                    print(f"No records found for '{category}'. Moving to next category.")
+                    continue
+
+                print(f"Found {total_records} records across {total_pages} pages for '{category}'.")
+                
+                # Add applications from the first page to our list
+                all_applications.extend(data.get('Application', []))
+
+                # --- Step 3: Loop through the remaining pages for the category ---
+                if total_pages > 1:
+                    for page_num in tqdm(range(2, total_pages + 1), desc=f"Fetching {category} Pages"):
+                        headers['pageNumber'] = str(page_num)
+                        response = session.get(CONFIG['api_url'], headers=headers)
+                        response.raise_for_status()
+                        page_data = response.json()
+                        all_applications.extend(page_data.get('Application', []))
+                        time.sleep(0.2) # Be polite to the API server
+                
+            except requests.exceptions.RequestException as e:
+                print(f"\nAn error occurred while fetching '{category}': {e}")
+                print("Skipping to the next category.")
+                continue
+
+    # --- Step 4: Process and save the combined data ---
     if not all_applications:
-        print("No data was collected to save.")
+        print("\nNo data was collected across all categories. Exiting.")
         return
 
-    print(f"Saving data to '{CONFIG['output_filename']}'...")
+    print(f"\n\nAll categories fetched. Total applications collected: {len(all_applications)}")
+    
+    print("Processing final data and removing duplicates...")
     df = pd.DataFrame(all_applications)
     
+    initial_count = len(df)
+    # Remove duplicates based on the unique application number
+    df.drop_duplicates(subset=['PlanningPortalApplicationNumber'], keep='first', inplace=True)
+    final_count = len(df)
+
+    if initial_count > final_count:
+        print(f"Removed {initial_count - final_count} duplicate applications.")
+
+    print(f"Saving {final_count} unique applications to '{CONFIG['output_filename']}'...")
     try:
         df.to_csv(CONFIG['output_filename'], index=False)
         print(f"Successfully exported all data.")
